@@ -71,3 +71,29 @@ text-embedding-3-small：OpenAI 托管，但按 token 收费，数据出本地�
 
 ## 替代方案
 GPT-4：贵，但生态好；Claude：贵，但长上下文好。
+
+# ADR-004: 用 trace_id + 结构化日志
+
+## 状态
+已接受
+
+## 背景
+FastAPI 并发处理请求，普通日志无法区分哪几行属于同一次请求。
+排查线上问题时，需要把一次请求的所有日志串起来。
+
+## 决策
+1. 用 ContextVar 存 trace_id，中间件生成并注入响应头 X-Trace-Id。
+2. 用 structlog 输出 JSON 日志，每行带 trace_id。
+
+## 理由
+- trace_id 让一次请求的所有日志可 grep
+- JSON 日志可被 LangFuse/ELK 采集
+- ContextVar 天然协程安全，不污染全局
+
+## 代价
+- 日志体积变大（JSON 比纯文本长）
+- structlog 用法和标准 logging 不同，需要适应
+
+## 替代方案
+- 只用标准 logging：无法结构化，采集困难
+- 用 OpenTelemetry：功能更强，但 W1 阶段过重
